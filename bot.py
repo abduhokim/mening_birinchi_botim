@@ -1,7 +1,7 @@
 import asyncio
 import random
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackContext, filters
 
 BOT_TOKEN = "7670469438:AAH17F1_Ztumqea7TSQ8qsSmtLtLzjjNwO8"
 
@@ -18,19 +18,19 @@ animes = [
 ]
 
 def menu_keyboard():
-    return ReplyKeyboardMarkup([
-        [KeyboardButton("🌸 Tasodifiy Anime 🌸")],
-        [KeyboardButton("🎌 Anime menyu"), KeyboardButton("🔍 Kod orqali qidirish")],
-        [KeyboardButton("🤖 AI yordamchi"), KeyboardButton("👥 Anonim Chat")],
-        [KeyboardButton("❌ Suhbatni to‘xtatish")],
+    return ReplyKeyboardMarkup([ 
+        [KeyboardButton("🌸 Tasodifiy Anime 🌸")], 
+        [KeyboardButton("🎌 Anime menyu"), KeyboardButton("🔍 Kod orqali qidirish")], 
+        [KeyboardButton("🤖 AI yordamchi"), KeyboardButton("👥 Anonim Chat")], 
+        [KeyboardButton("❌ Suhbatni to‘xtatish")], 
     ], resize_keyboard=True)
 
 # /start komandasi
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(update: Update, context: CallbackContext):
     await update.message.reply_text("👋 Assalomu alaykum! Xush kelibsiz!", reply_markup=menu_keyboard())
 
 # Tasodifiy anime
-async def random_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def random_anime(update: Update, context: CallbackContext):
     anime = random.choice(animes)
     text = f"""✨ <b>Anime nomi:</b> <i>{anime['name']}</i>
 🎬 <b>Qismlar soni:</b> <i>{anime['episodes']}</i>
@@ -39,15 +39,15 @@ async def random_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_html(text)
 
 # Kod orqali qidirish
-async def search_by_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def search_by_code(update: Update, context: CallbackContext):
     await update.message.reply_text("🔍 Kod kiriting:")
 
 # AI yordamchi (mock)
-async def ai_helper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def ai_helper(update: Update, context: CallbackContext):
     await update.message.reply_text("🤖 Menga savol bering, yordam beraman!")
 
 # Anonim chatga ulanish
-async def anonymous_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def anonymous_chat(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     if user_id in active_chats:
         await update.message.reply_text("❗Siz allaqachon chatdasiz.")
@@ -64,7 +64,7 @@ async def anonymous_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⏳ Kuting, sizga suhbatdosh izlayapmiz...")
 
 # Anonim xabar yuborish
-async def relay_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def relay_message(update: Update, context: CallbackContext):
     sender = update.effective_user.id
     if sender in active_chats:
         receiver = active_chats[sender]
@@ -79,7 +79,7 @@ async def relay_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return  # Agar anonim chatda bo'lmasa, xabar yuborilmaydi
 
 # Chatni to‘xtatish
-async def stop_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def stop_chat(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     if user_id in active_chats:
         partner = active_chats[user_id]
@@ -91,7 +91,7 @@ async def stop_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❗Sizda faol suhbat yo‘q.")
 
 # Tugmalarni boshqarish
-async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_buttons(update: Update, context: CallbackContext):
     text = update.message.text
     if "Tasodifiy" in text:
         await random_anime(update, context)
@@ -114,7 +114,7 @@ async def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stop", stop_chat))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_buttons))
+    app.add_handler(MessageHandler(filters.TEXT, handle_buttons))
     app.add_handler(MessageHandler(filters.Sticker.ALL | filters.TEXT, relay_message))
 
     print("✅ Bot ishga tushdi...")
