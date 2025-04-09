@@ -12,6 +12,7 @@ load_dotenv()
 
 # Tokenlar
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME")  # Obuna bo'lishi kerak bo'lgan kanal foydalanuvchi ismi
 SEARCH_ENGINE_ID = os.getenv("SEARCH_ENGINE_ID")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
@@ -33,6 +34,12 @@ def back_button():
 
 # Boshlash
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Kanalga obuna bo'lganligini tekshirish
+    if not await is_user_subscribed(update):
+        await update.message.reply_text("Iltimos, quyidagi kanalda obuna bo'ling:\n\n"
+                                        f"https://t.me/{CHANNEL_USERNAME}")
+        return
+    
     keyboard = [
         [InlineKeyboardButton("🎭 Anonim chat", callback_data="anonymous_chat")],
         [InlineKeyboardButton("🎲 Tasodifiy anime", callback_data="random_anime")],
@@ -42,6 +49,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Salom! Quyidagilardan birini tanlang:", reply_markup=reply_markup)
+
+# Foydalanuvchi kanalda obuna bo'lganligini tekshirish
+async def is_user_subscribed(update: Update) -> bool:
+    try:
+        # Foydalanuvchi kanalga obuna bo'lganligini tekshiramiz
+        member = await update.bot.get_chat_member(CHANNEL_USERNAME, update.message.from_user.id)
+        return member.status in ['member', 'administrator', 'creator']
+    except Exception as e:
+        logging.error(f"Kanal obuna tekshirishda xatolik: {e}")
+        return False
 
 # Crunchyroll saytidan anime qidirish
 def search_crunchyroll(anime_name: str):
@@ -67,6 +84,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    # Kanalga obuna bo'lish tekshiruvi
+    if not await is_user_subscribed(update):
+        await query.edit_message_text("Iltimos, quyidagi kanalda obuna bo'ling:\n\n"
+                                      f"https://t.me/{CHANNEL_USERNAME}")
+        return
+
     if query.data == "anonymous_chat":
         await query.edit_message_text("Anonim chat hali tayyor emas.", reply_markup=back_button())
 
@@ -85,22 +108,28 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("📢 Reklama va hamkorlik uchun @username ga yozing.", reply_markup=back_button())
 
     elif query.data == "back":
-        await query.edit_message_text(text="Asosiy menyuga qaytdingiz!", reply_markup=None)
-        await start(update, context)
+        await start(update, context)  # Asosiy menyuga qaytish
 
     else:
         await query.edit_message_text("Hozircha mavjud emas.", reply_markup=back_button())
 
 # Anime haqida ma'lumot izlash
 async def search_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    anime_name = update.message.text
-    title, link, image_url = search_crunchyroll(anime_name)
-    
-    if title:
-        await update.message.reply_text(f"Anime nomi: {title}\nLink: {link}", reply_markup=back_button())
-        await update.message.reply_photo(photo=image_url, caption=f"Mana, {title} ning rasmi:", reply_markup=back_button())
-    else:
-        await update.message.reply_text("Aniq ma'lumot topilmadi.", reply_markup=back_button())
+    # Foydalanuvchi matn yuborgan bo'lsa
+    if not update.message.text.startswith('/'):
+        # Agar tugma tanlanmagan bo'lsa
+        if not context.user_data.get('search_in_progress', False):
+            await update.message.reply_text("Iltimos, biror tugmani tanlang.", reply_markup=back_button())
+            return
+        
+        anime_name = update.message.text
+        title, link, image_url = search_crunchyroll(anime_name)
+        
+        if title:
+            await update.message.reply_text(f"Anime nomi: {title}\nLink: {link}", reply_markup=back_button())
+            await update.message.reply_photo(photo=image_url, caption=f"Mana, {title} ning rasmi:", reply_markup=back_button())
+        else:
+            await update.message.reply_text("Aniq ma'lumot topilmadi.", reply_markup=back_button())
 
 # Ishga tushirish
 def main():
