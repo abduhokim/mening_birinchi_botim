@@ -40,7 +40,7 @@ async def handle_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Asosiy ishga tushirish
 def main():
-    app = ApplicationBuilder().token("7670469438:AAH17F1_Ztumqea7TSQ8qsSmtLtLzjjNwO8").build()
+    app = ApplicationBuilder().token("BOT_TOKEN").build()
 
     app.add_handler(CommandHandler("start", start))
 
