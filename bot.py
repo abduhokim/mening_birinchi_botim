@@ -45,7 +45,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Crunchyroll saytidan anime qidirish
 def search_crunchyroll(anime_name: str):
-    search_url = f"https://anilist.co/search?q={anime_name}"
+    search_url = f"https://www.crunchyroll.com/search?q={anime_name}"
     response = requests.get(search_url)
     
     if response.status_code == 200:
@@ -55,7 +55,7 @@ def search_crunchyroll(anime_name: str):
         if results:
             first_result = results[0].find('a')
             title = first_result.text.strip()
-            link = f"https://anilist.co{first_result['href']}"
+            link = f"https://www.crunchyroll.com{first_result['href']}"
             image_url = soup.find('img', class_='lazyload')['data-src']
             return title, link, image_url
         else:
@@ -77,6 +77,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     elif query.data == "search":
         await query.edit_message_text("Iltimos, anime nomini kiriting:")
+        context.user_data['search_in_progress'] = True  # Anime izlash uchun jarayonni boshla
 
     elif query.data == "ai_search":
         await query.edit_message_text("AI qidiruv hozircha yoqilmagan.", reply_markup=back_button())
@@ -92,13 +93,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Anime haqida ma'lumot izlash
 async def search_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Foydalanuvchi matn yuborgan bo'lsa
-    if not update.message.text.startswith('/'):
-        # Agar tugma tanlanmagan bo'lsa
-        if not context.user_data.get('search_in_progress', False):
-            await update.message.reply_text("Iltimos, biror tugmani tanlang.", reply_markup=back_button())
-            return
-        
+    if context.user_data.get('search_in_progress', False):  # Faqat anime izlash jarayoni boshlanganida
         anime_name = update.message.text
         title, link, image_url = search_crunchyroll(anime_name)
         
@@ -107,6 +102,10 @@ async def search_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_photo(photo=image_url, caption=f"Mana, {title} ning rasmi:", reply_markup=back_button())
         else:
             await update.message.reply_text("Aniq ma'lumot topilmadi.", reply_markup=back_button())
+        
+        context.user_data['search_in_progress'] = False  # Qidiruv tugadi
+    else:
+        await update.message.reply_text("Iltimos, anime izlash uchun tugmalardan birini tanlang.", reply_markup=back_button())
 
 # Ishga tushirish
 def main():
