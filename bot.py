@@ -1,7 +1,7 @@
 import logging
 import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackContext, CallbackQueryHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
 
 # Bot tokenini o'zgartiring
 TOKEN = 'YOUR_BOT_TOKEN'
@@ -9,7 +9,7 @@ TOKEN = 'YOUR_BOT_TOKEN'
 # Loggingni sozlash
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-def start(update: Update, context: CallbackContext) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
         [InlineKeyboardButton("Anime izlash", callback_data='search')],
         [InlineKeyboardButton("Tasodifiy anime", callback_data='random')],
@@ -20,21 +20,21 @@ def start(update: Update, context: CallbackContext) -> None:
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text('Salom! Iltimos, biror tugmani tanlang:', reply_markup=reply_markup)
+    await update.message.reply_text('Salom! Iltimos, biror tugmani tanlang:', reply_markup=reply_markup)
 
-def get_random_anime_image() -> str:
+async def get_random_anime_image() -> str:
     response = requests.get('https://api.waifu.pics/sfw/waifu')
     if response.status_code == 200:
         return response.json().get('url')
     return None
 
-def search_anime(update: Update, context: CallbackContext) -> None:
+async def search_anime(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    query.answer()
-    query.edit_message_text(text="Iltimos, izlayotgan anime nomini yozing:")
+    await query.answer()
+    await query.edit_message_text(text="Iltimos, izlayotgan anime nomini yozing:")
     context.user_data['searching'] = True
 
-def handle_message(update: Update, context: CallbackContext) -> None:
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if context.user_data.get('searching'):
         anime_name = update.message.text
         # Anime nomini qidirish uchun API qo'ng'irog'i (bu yerda siz o'zingizning API manzilingizni qo'shishingiz kerak)
@@ -44,50 +44,47 @@ def handle_message(update: Update, context: CallbackContext) -> None:
         #     # Qidiruv natijalarini qaytarish
         #     pass
         # else:
-        #     update.message.reply_text('Anime topilmadi.')
+        #     await update.message.reply_text('Anime topilmadi.')
         
         # Hozircha tasodifiy anime rasm yuborish
-        image_url = get_random_anime_image()
+        image_url = await get_random_anime_image()
         if image_url:
-            update.message.reply_photo(photo=image_url)
+            await update.message.reply_photo(photo=image_url)
         else:
-            update.message.reply_text('Rasm olishda xatolik yuz berdi.')
+            await update.message.reply_text('Rasm olishda xatolik yuz berdi.')
 
         context.user_data['searching'] = False
 
-def button(update: Update, context: CallbackContext) -> None:
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    query.answer()
+    await query.answer()
 
     if query.data == 'random':
-        image_url = get_random_anime_image()
+        image_url = await get_random_anime_image()
         if image_url:
-            query.edit_message_text(text="Mana sizga tasodifiy anime rasm:", reply_markup=None)
-            query.message.reply_photo(photo=image_url)
+            await query.edit_message_text(text="Mana sizga tasodifiy anime rasm:", reply_markup=None)
+            await query.message.reply_photo(photo=image_url)
         else:
-            query.edit_message_text(text='Rasm olishda xatolik yuz berdi.')
+            await query.edit_message_text(text='Rasm olishda xatolik yuz berdi.')
     elif query.data == 'search':
-        search_anime(update, context)
+        await search_anime(update, context)
     elif query.data == 'anonymous_chat':
-        query.edit_message_text(text="Anonim chat funksiyasi hozirda mavjud emas.")
+        await query.edit_message_text(text="Anonim chat funksiyasi hozirda mavjud emas.")
     elif query.data == 'anime_menu':
-        query.edit_message_text(text="Anime menyu: \n1. Anime izlash\n2. Tasodifiy anime\n3. Anonim chat")
+        await query.edit_message_text(text="Anime menyu: \n1. Anime izlash\n2. Tasodifiy anime\n3. Anonim chat")
     elif query.data == 'ai_search':
-        query.edit_message_text(text="AI qidiruv funksiyasi hozirda mavjud emas.")
+        await query.edit_message_text(text="AI qidiruv funksiyasi hozirda mavjud emas.")
     elif query.data == 'advertising':
-        query.edit_message_text(text="Reklama & Homiylik funksiyasi hozirda mavjud emas.")
+        await query.edit_message_text(text="Reklama & Homiylik funksiyasi hozirda mavjud emas.")
 
 def main() -> None:
-    updater = Updater(TOKEN)
+    application = ApplicationBuilder().token(TOKEN).build()
 
-    dispatcher = updater.dispatcher
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(button))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CallbackQueryHandler(button))
-    dispatcher.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    updater.start_polling()
-    updater.idle()
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
