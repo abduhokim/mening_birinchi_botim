@@ -12,7 +12,6 @@ load_dotenv()
 
 # Tokenlar
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME")  # Obuna bo'lishi kerak bo'lgan kanal foydalanuvchi ismi
 SEARCH_ENGINE_ID = os.getenv("SEARCH_ENGINE_ID")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
@@ -34,12 +33,6 @@ def back_button():
 
 # Boshlash
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Kanalga obuna bo'lganligini tekshirish
-    if not await is_user_subscribed(update):
-        await update.message.reply_text("Iltimos, quyidagi kanalda obuna bo'ling:\n\n"
-                                        f"https://t.me/{CHANNEL_USERNAME}")
-        return
-    
     keyboard = [
         [InlineKeyboardButton("🎭 Anonim chat", callback_data="anonymous_chat")],
         [InlineKeyboardButton("🎲 Tasodifiy anime", callback_data="random_anime")],
@@ -50,19 +43,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Salom! Quyidagilardan birini tanlang:", reply_markup=reply_markup)
 
-# Foydalanuvchi kanalda obuna bo'lganligini tekshirish
-async def is_user_subscribed(update: Update) -> bool:
-    try:
-        # Foydalanuvchi kanalga obuna bo'lganligini tekshiramiz
-        member = await update.bot.get_chat_member(CHANNEL_USERNAME, update.message.from_user.id)
-        return member.status in ['member', 'administrator', 'creator']
-    except Exception as e:
-        logging.error(f"Kanal obuna tekshirishda xatolik: {e}")
-        return False
-
 # Crunchyroll saytidan anime qidirish
 def search_crunchyroll(anime_name: str):
-    search_url = f"https://www.crunchyroll.com/search?q={anime_name}"
+    search_url = f"https://anilist.co/search?q={anime_name}"
     response = requests.get(search_url)
     
     if response.status_code == 200:
@@ -72,7 +55,7 @@ def search_crunchyroll(anime_name: str):
         if results:
             first_result = results[0].find('a')
             title = first_result.text.strip()
-            link = f"https://www.crunchyroll.com{first_result['href']}"
+            link = f"https://anilist.co{first_result['href']}"
             image_url = soup.find('img', class_='lazyload')['data-src']
             return title, link, image_url
         else:
@@ -83,12 +66,6 @@ def search_crunchyroll(anime_name: str):
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
-    # Kanalga obuna bo'lish tekshiruvi
-    if not await is_user_subscribed(update):
-        await query.edit_message_text("Iltimos, quyidagi kanalda obuna bo'ling:\n\n"
-                                      f"https://t.me/{CHANNEL_USERNAME}")
-        return
 
     if query.data == "anonymous_chat":
         await query.edit_message_text("Anonim chat hali tayyor emas.", reply_markup=back_button())
