@@ -4,7 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
 
 # Bot tokenini o'zgartiring
-TOKEN = '7670469438:AAGR0UX3ElO2ZblaQKFYnAJvLwv79P7BFrk'
+TOKEN = ()
 
 # Loggingni sozlash
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
