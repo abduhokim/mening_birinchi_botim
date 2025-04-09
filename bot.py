@@ -1,18 +1,28 @@
 import logging
 import requests
 import os
+import random
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
 
-# .env faylini yuklash
+# Load environment variables
 load_dotenv()
 
-# Bot tokenini olish
+# Get bot token and Google API credentials
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+SEARCH_ENGINE_ID = os.getenv('SEARCH_ENGINE_ID')
 
-# Loggingni sozlash
+# Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+# Random anime image URLs (for fallback)
+anime_images = [
+    "https://example.com/image1.jpg",
+    "https://example.com/image2.jpg",
+    "https://example.com/image3.jpg",
+]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
@@ -33,15 +43,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if query.data == 'anonymous_chat':
         await query.edit_message_text(text="Anonim chat funksiyasi hozirda ishlab chiqilmoqda." + "\n\nOrqaga qaytish uchun tugmani bosing:", reply_markup=back_button())
     elif query.data == 'random_anime':
-        anime_data = await get_random_anime()
-        if anime_data:
-            image_url = anime_data.get('image_url')
-            anime_title = anime_data.get('title')
-            anime_description = anime_data.get('description')
-            await query.edit_message_text(text=f"Mana sizga tasodifiy anime: {anime_title}\n\n{anime_description}" + "\n\nOrqaga qaytish uchun tugmani bosing:", reply_markup=back_button())
-            await query.message.reply_photo(photo=image_url)
-        else:
-            await query.edit_message_text(text='Rasm olishda xatolik yuz berdi.' + "\n\nOrqaga qaytish uchun tugmani bosing:", reply_markup=back_button())
+        random_image = random.choice(anime_images)
+        await query.edit_message_text(text="Mana sizga tasodifiy anime rasm:" + "\n\nOrqaga qaytish uchun tugmani bosing:", reply_markup=back_button())
+        await query.message.reply_photo(photo=random_image)
     elif query.data == 'search':
         await query.edit_message_text(text="Iltimos, qidirayotgan anime nomini kiriting:")
     elif query.data == 'ai_search':
@@ -49,29 +53,26 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     elif query.data == 'advertising':
         await query.edit_message_text(text="Reklama va homiylik haqida ma'lumot: ...\n\nOrqaga qaytish uchun tugmani bosing:", reply_markup=back_button())
     elif query.data == 'back':
-        await start(update, context)
+        await start(update, context)  # Call start function to return to main menu
     else:
         await query.edit_message_text(text="Hozirda ishlab chiqilmoqda." + "\n\nOrqaga qaytish uchun tugmani bosing:", reply_markup=back_button())
 
 def back_button():
     return InlineKeyboardMarkup([[InlineKeyboardButton("Orqaga", callback_data='back')]])
 
-async def get_random_anime() -> dict:
-    # Tasodifiy anime olish uchun API manzilini qo'shing
-    response = requests.get('https://api.example.com/random-anime')  # O'zingizning anime API manzilingizni qo'shing
-    if response.status_code == 200:
-        return response.json()
-    return None
-
 async def search_anime(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     anime_name = update.message.text
-    # Anime qidirish uchun API so'rovini yuboring
-    response = requests.get(f'https://api.example.com/search-anime?name={anime_name}')  # O'zingizning qidiruv API manzilingizni qo'shing
+    # Use Google Custom Search API to find images
+    url = f"https://www.googleapis.com/customsearch/v1?q={anime_name}&cx={SEARCH_ENGINE_ID}&key={GOOGLE_API_KEY}&searchType=image"
+    
+    response = requests.get(url)
+    
     if response.status_code == 200:
-        anime_data = response.json()
-        if anime_data:
-            # Anime ma'lumotlarini ko'rsatish
-            await update.message.reply_text(f"Qidirilgan anime: {anime_data['title']}\nQismlar soni: {anime_data['episodes']}\nIshlab chiqaruvchi: {anime_data['studio']}\n\nOrqaga qaytish uchun tugmani bosing:", reply_markup=back_button())
+        search_results = response.json()
+        if 'items' in search_results and len(search_results['items']) > 0:
+            # Get the first image URL from the search results
+            image_url = search_results['items'][0]['link']
+            await update.message.reply_photo(photo=image_url, caption=f"Qidirilgan anime: {anime_name}\n\nOrqaga qaytish uchun tugmani bosing:", reply_markup=back_button())
         else:
             await update.message.reply_text("Qidirilgan anime topilmadi." + "\n\nOrqaga qaytish uchun tugmani bosing:", reply_markup=back_button())
     else:
@@ -82,7 +83,7 @@ def main() -> None:
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime))  # Foydalanuvchi matn kiritganda qidiruv funksiyasini chaqirish
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime))
 
     application.run_polling()
 
